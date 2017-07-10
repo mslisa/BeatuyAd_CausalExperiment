@@ -128,12 +128,10 @@ for (column in columns_to_analyse){
   print(get_ATE(d, column))
 }
 
-# How likely is it to get this answer by chance only?
+# How likely is it to get this answer by chance only? TRUE population
 column <- 'Personal_Views_Confident'
 pop <- 100000
 sample_size <- 30
-
-#Re-shuffle the sample of 30, 10000 to get the distribution
 
 true_population <- c(rep(-2, pop * (1/4)), rep(-1, pop * (1/4)), rep(1, pop * (1/4)), rep(2, pop * (1/4)))
 mean(true_population)
@@ -166,6 +164,32 @@ for (column in columns_to_analyse){
   plot(sample_sizes, p_values, type ='l', main = 'Sample to reach significancy', cex.main= 0.8, xlab=column)
   abline(h = 0.05, col = "blue")
 }
+
+
+# How likely is it to get this answer by chance only? Using the current sample
+#Re-shuffle the sample of 30, 10000 to get the distribution
+
+control_treatment <- c(rep(1, length(d[[column]]) * (1/2)), rep(0, length(d[[column]]) * (1/2)))
+sample_size <- length(d[[column]])
+
+get_null_ATE_from_current_sample <- function(d, control_treatment, column){
+  assignment <- sample(control_treatment, length(d[[column]]))
+  dt <- data.frame(outcome = d[[column]], assignement = assignment)
+  null.ATE <- mean(dt[assignment == 1, ]$outcome) - mean(dt[assignment == 0, ]$outcome)
+  return(null.ATE)
+}
+
+par(mfrow=c(2,2))
+for (column in columns_to_analyse){
+  sharp.null.hypothesis <- replicate(10000, get_null_ATE_from_current_sample(d, control_treatment, column))
+  ATE <- get_ATE(d, column)
+  p_value <- mean(ATE <= sharp.null.hypothesis)
+  plot(density(sharp.null.hypothesis),  main = paste('Samp: ', sample_size, ' ATE: ', round(ATE, 3), 
+                                                     'p-value :', round(p_value, 3)), cex.main= 0.8,
+       xlab=column)
+  abline(v = ATE, col = "blue")
+}
+
 
 ######## Getting the ATE for IMAGES questions #########
 
