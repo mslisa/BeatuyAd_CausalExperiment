@@ -105,12 +105,13 @@ d <- rename(d, Coffee_validate_1 = Coffe_validate_1,
 images <- c('Passion', 'Coffee', 'Couple', 'Work', 'Fit')
 questions <- c('_i_identify_', '_i_prefer_', '_o_prefer_', '_validate_')
 randomization <- c('1', '2')
+
 for (image in images){
   for (question in questions){
     column1 <- paste(image, question, '1', sep = "")
-    d[[column1]] <- ifelse(d[[column1]] == 'Ad 1', 1, ifelse(d[[column1]] == 'Ad 2', 2, 0))
+    d[[column1]] <- ifelse(d[[column1]] == 'Ad 1', 2, ifelse(d[[column1]] == 'Ad 2', 1, 0))
     column2 <- paste(image, question, '2', sep = "")
-    d[[column2]] <- ifelse(d[[column2]] == 'Ad 2', 1, ifelse(d[[column2]] == 'Ad 1', 2, 0))
+    d[[column2]] <- ifelse(d[[column2]] == 'Ad 2', 2, ifelse(d[[column2]] == 'Ad 1', 1, 0))
     new_column <- paste(image, question, sep ="")
     d[[new_column]] <- d[[column1]] + d[[column2]] - 1
     d[[new_column]] <- ifelse(d[[new_column]] == -1, NA, d[[new_column]])
@@ -128,11 +129,11 @@ for (column in columns_to_analyse){
 }
 
 # How likely is it to get this answer by chance only?
-#effect_size <- 0.05
-#effect_ate <- 0.5 + effect_size
 column <- 'Personal_Views_Confident'
 pop <- 100000
 sample_size <- 30
+
+#Re-shuffle the sample of 30, 10000 to get the distribution
 
 true_population <- c(rep(-2, pop * (1/4)), rep(-1, pop * (1/4)), rep(1, pop * (1/4)), rep(2, pop * (1/4)))
 mean(true_population)
@@ -166,19 +167,22 @@ for (column in columns_to_analyse){
   abline(h = 0.05, col = "blue")
 }
 
-######## Getting the ATE for VIDEO questions #########
+######## Getting the ATE for IMAGES questions #########
 
 images <- c('Passion', 'Coffee', 'Couple', 'Work', 'Fit')
 questions <- c('_i_identify_', '_i_prefer_', '_o_prefer_', '_validate_')
 
-column <- 'Personal_Views_Confident'
+column <- 'Passion_i_identify_'
 pop <- 100000
-sample_size <- 30
+sample_size <- 400
 
 true_population <- c(rep(0, pop * (1/2)), rep(1, pop * (1/2)))
 mean(true_population)
 # Rely on simulated CLT to get the distribution of the ATE
 sharp.null.hypothesis <- replicate(10000, mean(sample(true_population, sample_size)) - mean(sample(true_population, sample_size)))
+
+par(mfrow=c(1,1))
+plot(density(sharp.null.hypothesis),  main = paste('Sample_size: ', sample_size), cex.main= 0.8)
 
 for (image in images){
   for (question in questions){
@@ -186,15 +190,41 @@ for (image in images){
     ATE <- get_ATE(d, column)
     p_value <- mean(abs(ATE) <= sharp.null.hypothesis)
     print(column)
-    print(ATE)
-    #plot(density(sharp.null.hypothesis),  main = paste('Samp: ', sample_size, ' ATE: ', round(ATE, 3), 
-    #                                                   'p-value :', round(p_value, 3)), cex.main= 0.8,
-    #     xlab=column)
-    #abline(v = ATE, col = "blue")
-    print(paste(p_value, ifelse(p_value < 0.05, '***', ''), sep = ""))
-    print('======================')
+    print(paste('ATE:', ATE))
+    print(paste('p-value: ', p_value, ifelse(p_value < 0.05, '***', ''), sep = ""))
+    
+    if (p_value < 0.05){
+      abline(v = abs(ATE), col = "blue")
+    } else {
+      abline(v = abs(ATE), col = "red")
+    }
+    percentage_similar <- sum(d[[column]], na.rm = TRUE)/nrow(d[!is.na(d[[column]]),])
+    print(paste('percentage_similar: ', round(percentage_similar,2)))
   }
+  print('======================================')
 }
+
+#Doing the analysis for all images per user - instead of one by one
 
 #With n=30 - none of the results are significant except for couple_o_prefer -> but this results can be 
 # considered as a fishing expedition results... 
+
+#Divergence of opinion
+
+
+######## Running the formula for sample size ########
+#https://www.isixsigma.com/tools-templates/sampling-data/how-determine-sample-size-determining-sample-size/
+z = 1.96
+E = 0.05 #For a 5% effect size 
+
+for (image in images){
+  for (question in questions){
+    column <- paste(image, question, sep = "")
+    s_d <- sd(d[[column]], na.rm = TRUE)
+    n <- (z * s_d / E)**2 
+    print(column)
+    print(paste('sample_size :', round(n, 0)))
+  }
+}
+
+
