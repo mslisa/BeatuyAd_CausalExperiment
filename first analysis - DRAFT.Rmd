@@ -1,0 +1,147 @@
+---
+title: "Beauty Ad Causal Experiment"
+author: "Lisa Minas, Ashton Chevallier & Olivier Zimmer"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(plyr)
+library(ggplot2)
+library(car)
+```
+
+## Load & Clean data 
+
+```{r}
+setwd('/Users/ozimmer/GoogleDrive/berkeley/w241/BeatuyAd_CausalExperiment/Data')
+d <- read.csv('BeautyAds_July 19, 2017_22.18.csv')
+
+# Filter out irrelevant entries
+d <- d[-c(1,2),]
+d <- d[d$Status == 'IP Address',] #Remove survey preview 
+d <- d[d$Welcome == 'I agree',] #Remove users who didn't agree to participate
+d <- d[d$Finished == 'True',] #Remove users who didn't finisn the survey
+d <- d[d$Group %in% c('Treatment', 'Control'),]
+d <- d[d$AudioCheck == 'Pineapple', ]
+
+length(unique(d$IPAddress))
+
+# Recoding of values
+recode_values <- function(d, column){
+  d[[column]] <- as.character(d[[column]])
+  d[[column]] <- dplyr::recode(d[[column]], 'Strongly disagree' = -2, 
+                                       'Disagree' = -1, 'Agree' = 1, 'Strongly agree' = 2, 
+                                       .missing = 0, .default = 0)
+}
+
+columns_to_analyse <- c('Personal_Views_Confident', 'Personal_Views_Beautiful', 
+                       'Personal_Views_Beauty_Importance', 'Personal_Views_Relate_To_Model')
+for (column in columns_to_analyse){
+  d[[column]] <- recode_values(d, column)
+}
+
+# Correct column names misspellings
+d <- rename(d, Coffee_validate_1 = Coffe_validate_1, 
+            Fit_i_identify_1 = FIt_i_identify_1, 
+            Work_i_identify_2 = work_i_identify_2)
+
+# Combine and recode randomization 1 & 2 for the images
+images <- c('Passion', 'Coffee', 'Couple', 'Work', 'Fit')
+questions <- c('_i_identify_', '_i_prefer_', '_o_prefer_', '_validate_')
+randomization <- c('1', '2')
+
+for (image in images){
+  for (question in questions){
+    column1 <- paste(image, question, '1', sep = "")
+    d[[column1]] <- ifelse(d[[column1]] == 'Ad 1', 2, ifelse(d[[column1]] == 'Ad 2', 1, 0))
+    column2 <- paste(image, question, '2', sep = "")
+    d[[column2]] <- ifelse(d[[column2]] == 'Ad 2', 2, ifelse(d[[column2]] == 'Ad 1', 1, 0))
+    new_column <- paste(image, question, sep ="")
+    d[[new_column]] <- d[[column1]] + d[[column2]] - 1
+    d[[new_column]] <- ifelse(d[[new_column]] == -1, NA, d[[new_column]])
+  }
+}
+```
+
+## ATE for text questions
+
+```{r}
+columns_to_analyse <- c('Personal_Views_Confident', 'Personal_Views_Beautiful', 
+                       'Personal_Views_Beauty_Importance', 'Personal_Views_Relate_To_Model')
+for (column in columns_to_analyse){
+  l1 <- lm(d[[column]] ~ d[['Group']])
+  print(column)
+  print(coef(summary(l1))[2,])
+}
+```
+Only Personal views relate to model has significant results. 
+
+## Adding covariates
+
+```{r}
+#str(d)
+columns_to_analyse <- c('Personal_Views_Confident', 'Personal_Views_Beautiful', 
+                       'Personal_Views_Beauty_Importance', 'Personal_Views_Relate_To_Model')
+for (column in columns_to_analyse){
+  l1 <- lm(d[[column]] ~ d[['Group']] + d$Age + d$Gender + d$Race + d$Location)
+  print(column)
+  print(summary(l1))
+}
+```
+## Differences in Mean for Text question
+
+```{r}
+get_ATE <- function(d, column){
+  return(mean(d[d$Group == 'Treatment',][[column]], na.rm = TRUE)- mean(d[d$Group == 'Control',][[column]], na.rm = TRUE))
+}
+for (column in columns_to_analyse){
+  print(column)
+  print(get_ATE(d, column))
+}
+```
+
+```{r}
+column <- 'Personal_Views_Confident'
+
+control_treatment <- c(rep(1, length(d[[column]]) * (1/2)), rep(0, length(d[[column]]) * (1/2)))
+sample_size <- length(d[[column]])
+
+get_null_ATE_from_current_sample <- function(d, control_treatment, column){
+  assignment <- sample(control_treatment, length(d[[column]]))
+  dt <- data.frame(outcome = d[[column]], assignement = assignment)
+  null.ATE <- mean(dt[assignment == 1, ]$outcome) - mean(dt[assignment == 0, ]$outcome)
+  return(null.ATE)
+}
+
+par(mfrow=c(2,2))
+for (column in columns_to_analyse){
+  sharp.null.hypothesis <- replicate(10000, get_null_ATE_from_current_sample(d, control_treatment, column))
+  ATE <- get_ATE(d, column)
+  p_value <- mean(ATE <= sharp.null.hypothesis)
+  plot(density(sharp.null.hypothesis),  main = paste('Samp: ', sample_size, ' ATE: ', round(ATE, 3), 
+                                                     'p-value :', round(p_value, 3)), cex.main= 0.8,
+       xlab=column)
+  abline(v = ATE, col = "blue")
+}
+```
+Similar results than yielded by linear regression
+
+## Getting the ATE for IMAGES questions
+
+```{r}
+images <- c('Passion', 'Coffee', 'Couple', 'Work', 'Fit')
+questions <- c('_i_identify_', '_i_prefer_', '_o_prefer_', '_validate_')
+
+for (image in images){
+  for (question in questions){
+    column <- paste(image, question, sep = "")
+    l1 <- lm(d[[column]] ~ d[['Group']])
+  print(column)
+  print(summary(l1))
+  }
+}
+```
+
+
+
