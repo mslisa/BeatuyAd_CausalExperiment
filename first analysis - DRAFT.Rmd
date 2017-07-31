@@ -1,7 +1,9 @@
 ---
 title: "Beauty Ad Causal Experiment"
 author: "Lisa Minas, Ashton Chevallier & Olivier Zimmer"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r}
@@ -25,8 +27,6 @@ d <- d[d$Finished == 'True',] #Remove users who didn't finisn the survey
 d <- d[d$Group %in% c('Treatment', 'Control'),]
 d <- d[d$AudioCheck == 'Pineapple', ]
 
-length(unique(d$IPAddress))
-
 # Recoding of values
 recode_values <- function(d, column){
   d[[column]] <- as.character(d[[column]])
@@ -42,7 +42,7 @@ for (column in columns_to_analyse){
 }
 
 # Correct column names misspellings
-d <- rename(d, Coffee_validate_1 = Coffe_validate_1, 
+d <- dplyr::rename(d, Coffee_validate_1 = Coffe_validate_1, 
             Fit_i_identify_1 = FIt_i_identify_1, 
             Work_i_identify_2 = work_i_identify_2)
 
