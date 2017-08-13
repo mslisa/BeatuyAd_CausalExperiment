@@ -1,0 +1,245 @@
+---
+title: "Final_Project_Markdown"
+author: "Ashton Chevallier, Lisa Minas, Olivier"
+date: "August 12, 2017"
+output: html_document
+---
+
+
+#Dataload
+```{r dataload, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+
+#Change Directory
+raw_data <- read.csv('C:/Users/achevall/Documents/UC Berkeley/w241/Final/BeatuyAd_CausalExperiment/Data/BeautyAds_July 19, 2017_22.18.csv')
+
+
+```
+
+#Exploratory Data Analysis
+
+##Filters
+```{r filter}
+raw_data$RecordedDate <- as.POSIXct(strptime(as.character(raw_data$RecordedDate), '%Y-%m-%d %H:%M:%S'))
+
+#First Filter out junk data
+data <- raw_data %>% 
+  filter(Finished == 'True',
+         Status == 'IP Address',
+         Welcome == 'I agree', 
+         Group != '',
+         AudioCheck == 'Pineapple',
+         RecordedDate > '2017-07-16 01:00:00')
+
+
+
+```
+We created an audio check to test whether people understood English and were paying attention to the survey. We are using the audiocheck to filter out non-compliers. The other filters are to remove junk data: we don't want partial responses, junk IPS, or people that didn't agree with our terms. The date filter is to ensure we are using the correct experiment timing.
+
+##Summary Stats
+```{r summary}
+interesting_columns <- c('Race','Age','Gender','Location','Group')
+summary(data[,interesting_columns])
+
+percent_table <- function(column){
+  print(head(sort(table(sort(column))/length(column), decreasing = TRUE)))
+}
+
+percent_table(data$Race)
+```
+We got excellent an split between Treatment and Control, which gives us confidence our randomization worked. The racial demographic split seems to be fairly representative of the US, but whites and asians seem to be  a bit over sampled. Our location is fairly well balanced but it seems like Texas is under-represented. Most importantly our gender split is relatively even. We'd prefer more females than males (as the US is slightly more female), especially because we think females will respond to treatment better. But overall, we are happy with the sampling and don't see any glaring bias.
+
+##Exploratory Graphs
+```{r age_graphs}
+
+qplot(data$Age, geom = 'bar', fill = 'b', main = 'Bar plot of Age')
+```
+Not a lot of old people on Mechanical Turk, this is expected because I doubt retirees are filling out surveys to pay the bills. But our sample is certainly biased towards the 'millenials'.
+```{r}
+#INSERT CODE TO ROTATE LOCATIONS
+qplot(data$Location, geom = 'bar', fill = 'r', main = 'Bar Plot of Location')
+```
+Nothing too glaringly terrible, but Mechanical Turk seems much more popular in California than other places.
+```{r}
+#Rotate Race
+qplot(data$Race, geom = 'bar', fill= 'g', main = 'Bar Plot of Race')
+```
+Again, our distribution is fairly representative of the US. Nothing too biased. Although, we might not have enough power make any real causal claims on race.
+
+##Variables of Interest
+```{r}
+personal_views <- c('Personal_Views_Confident',
+                  'Personal_Views_Beautiful',
+                  'Personal_Views_Beauty_Importance',
+                  'Personal_Views_Relate_To_Model')
+
+summary(data[,personal_views])
+```
+
+```{r}
+print('Confidence')
+percent_table(data$Personal_Views_Confident)
+```
+Our group seems to be a very confident bunch. With well over 2/3rds being confident, it seems unlikely we'll find any discerning difference between treatment and control.
+```{r} 
+print('Beauty')
+percent_table(data$Personal_Views_Beautiful)
+```
+Considering how confident our Turk Users are, it's not surprising that they are also fairly positive in their views on their own beauty. There doesn't seem a lot of disagreement on their self beauty.
+```{r}
+print('Beauty Importance')
+percent_table(data$Personal_Views_Beauty_Importance)
+```
+Similar to before, our Turks have a consistent view of beauty, with only about a 3rd disagreeing.
+```{r}
+print('Relate to Model')
+percent_table(data$Personal_Views_Relate_To_Model)
+```
+Finally, the relating to the model seem to half a real split in the data. This is probably due to the treatment. 
+
+We'll recode all of our responses to a logical numeric value. 1 will be agree, 2 for strongly agree, -1 for disagree, -2 for strongly disagree.
+```{r clean}
+recode <- function(field){
+  out <- 0
+  if(field == 'Agree'){
+    out <- 1
+  } else if(field == 'Strongly agree'){
+    out <- 2
+  } else if(field == 'Disagree'){
+    out <- -1
+  } else if(field == 'Strongly disagree'){
+    out <- -2
+  }
+  out <- as.numeric(out)
+  return(out)
+}
+
+
+data$Beautiful <- sapply(data$Personal_Views_Beautiful, FUN =  recode)
+data$Confident <- sapply(data$Personal_Views_Confident, FUN =  recode)
+data$Importance <- sapply(data$Personal_Views_Beauty_Importance, FUN =  recode)
+data$Relate <- sapply(data$Personal_Views_Relate_To_Model, FUN =  recode)
+```
+
+```{r}
+qplot(data = data, x = Confident, fill = Gender, main = 'Confidence Split by Gender' )
+
+conf_analysis <- data %>% group_by(Gender,Confident) %>% summarize(cnt = n())
+qplot(data = conf_analysis, x = Gender, y = Confident, size = cnt, color = cnt)
+print(paste('Male Conf', mean(data$Confident[data$Gender=='Male'])))
+print(paste('Female Conf', mean(data$Confident[data$Gender=='Female'])))
+```
+
+All of our turks a fairly confident, but the male population seems to be a little bit more confident than the ladies.
+
+```{r, warning = FALSE}
+qplot(data$Confident, data$Beautiful)
+cor.test(data$Confident,data$Beautiful)
+chisq.test(data$Confident, data$Beautiful)
+```
+It looks like our Confidence and Self Beauty are strongly correlated, which is not surprising.
+```{r}
+cor.test(data$Relate, data$Beautiful )
+
+```
+
+The correlation between relating to the model and beauty is not nearly as strong as the correlation between beauty and confidence.
+
+#Randomization Inference
+```{r RI1}
+treat <- filter(data, Group == 'Treatment')
+control <- filter(data, Group == 'Control')
+
+ate_Beautiful <- mean(treat$Beautiful) - mean(control$Beautiful)
+ate_Confident <- mean(treat$Confident) - mean(control$Confident)
+ate_Importance <- mean(treat$Importance) - mean(control$Importance)
+ate_Relate <- mean(treat$Relate) - mean(control$Relate)
+
+#
+n <- 1e4
+copy <- data
+taus <- data.frame(matrix(NA, nrow = n, ncol = 4))
+names(taus) <- c('Beauty','Confidence','Importance','Relate')
+for(i in 1:n){
+  copy$Group <- sample(data$Group)
+  treat <- filter(copy, Group == 'Treatment')
+  control <- filter(copy, Group == 'Control')
+  
+  taus[i,1] <- mean(treat$Beautiful) - mean(control$Beautiful)
+  taus[i,2] <- mean(treat$Confident) - mean(control$Confident)
+  taus[i,3] <- mean(treat$Importance) - mean(control$Importance)
+  taus[i,4] <- mean(treat$Relate) - mean(control$Relate)
+}
+
+p_beauty <- sum(taus$Beauty > ate_Beautiful)/n
+p_confident <- sum(taus$Confidence > ate_Confident)/n
+p_relate <- sum(taus$Relate > ate_Relate)/n
+p_importance <- sum(taus$Importance > ate_Importance)/n
+print(paste('Pval Beauty',p_beauty))
+print(paste('Pval Confident', p_confident))
+print(paste('Pval Relate', p_relate))
+print(paste('Pval Important', p_importance))
+```
+
+Our only variable that seems to have a real ATE is the relation.
+
+##RI Plots
+```{r rIplots}
+qplot(taus$Beauty, bins = 30, main = paste('RI for Beauty Pvalue =', p_beauty)) + geom_vline(xintercept = ate_Beautiful)
+qplot(taus$Confidence, bins = 30, main = paste('RI for Confidence Pvalue =',p_confident)) + geom_vline(xintercept = ate_Confident)
+qplot(taus$Importance, bins = 30, main = paste('RI for Importance Pvalue =',p_importance)) + geom_vline(xintercept = ate_Importance)
+qplot(taus$Relate, bins = 30, main = paste('RI for Relating Pvalue =',p_relate)) + geom_vline(xintercept = ate_Relate)
+
+```
+
+The distributions are fairly normal and centered at zero. We can be fairly confident in our treatment effect on Relating to the model, but not any of the other items.
+
+#Linear Models
+
+```{r lmbeauty}
+
+m_beauty <- lm(data = data, Beautiful ~ Group)
+summary(m_beauty)
+```
+
+```{r}
+m_confident <- lm(data = data, Confident ~ Group)
+summary(m_confident)
+```
+
+```{r}
+m_importance <- lm(data = data, Importance ~ Group)
+summary(m_importance)
+```
+
+```{r}
+m_relate <- lm(data = data, Relate ~ Group)
+summary(m_relate)
+```
+
+```{r}
+m_beauty <- lm(data = data, Beautiful ~ Group + Gender)
+summary(m_beauty)
+````
+
+```{r}
+m_confident <- lm(data = data, Confident ~ Group + Gender)
+summary(m_confident)
+````
+
+```{r}
+m_importance <- lm(data = data, Importance ~ Group + Gender)
+summary(m_importance)
+```
+
+```{r}
+m_relate <- lm(data = data, Relate ~ Group + Gender)
+summary(m_relate)
+
+```
+
+
+```{r}
+
+```
