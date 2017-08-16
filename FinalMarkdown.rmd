@@ -2,7 +2,7 @@
 title: "Final_Project_Markdown"
 author: "Ashton Chevallier, Lisa Minas, Olivier"
 date: "August 12, 2017"
-output: html_document
+output: pdf_document
 ---
 
 
@@ -10,9 +10,10 @@ output: html_document
 ```{r dataload, warning=FALSE, message=FALSE}
 library(dplyr)
 library(ggplot2)
+library(stargazer)
 
 #Change Directory
-raw_data <- read.csv('C:/Users/achevall/Documents/UC Berkeley/w241/Final/BeatuyAd_CausalExperiment/Data/BeautyAds_July 19, 2017_22.18.csv')
+raw_data <- read.csv('/Users/ozimmer/GoogleDrive/berkeley/w241/BeatuyAd_CausalExperiment/Data/BeautyAds_July 19, 2017_22.18.csv')
 
 
 ```
@@ -21,19 +22,19 @@ raw_data <- read.csv('C:/Users/achevall/Documents/UC Berkeley/w241/Final/BeatuyA
 
 ##Filters
 ```{r filter}
-raw_data$RecordedDate <- as.POSIXct(strptime(as.character(raw_data$RecordedDate), '%Y-%m-%d %H:%M:%S'))
-
 #First Filter out junk data
-data <- raw_data %>% 
-  filter(Finished == 'True',
-         Status == 'IP Address',
-         Welcome == 'I agree', 
-         Group != '',
-         AudioCheck == 'Pineapple',
-         RecordedDate > '2017-07-16 01:00:00')
+filter_data <- function(raw_data) {
+  raw_data$RecordedDate <- as.POSIXct(strptime(as.character(raw_data$RecordedDate), '%Y-%m-%d %H:%M:%S'))
+  data <- raw_data %>% 
+    filter(Finished == 'True',
+           Status == 'IP Address',
+           Welcome == 'I agree', 
+           Group != '',
+           AudioCheck == 'Pineapple',
+           RecordedDate > '2017-07-16 01:00:00')
+}
 
-
-
+data <- filter_data(raw_data)
 ```
 We created an audio check to test whether people understood English and were paying attention to the survey. We are using the audiocheck to filter out non-compliers. The other filters are to remove junk data: we don't want partial responses, junk IPS, or people that didn't agree with our terms. The date filter is to ensure we are using the correct experiment timing.
 
@@ -139,10 +140,13 @@ cor.test(data$Confident,data$Beautiful)
 chisq.test(data$Confident, data$Beautiful)
 ```
 It looks like our Confidence and Self Beauty are strongly correlated, which is not surprising.
+
 ```{r}
 cor.test(data$Relate, data$Beautiful )
 
 ```
+
+** Note (Olivier): I would stick to descriptive statistics and not cover here correlation, as at this point this could be influenced by the experiment**
 
 The correlation between relating to the model and beauty is not nearly as strong as the correlation between beauty and confidence.
 
@@ -221,12 +225,12 @@ summary(m_relate)
 ```{r}
 m_beauty <- lm(data = data, Beautiful ~ Group + Gender)
 summary(m_beauty)
-````
+```
 
 ```{r}
 m_confident <- lm(data = data, Confident ~ Group + Gender)
 summary(m_confident)
-````
+```
 
 ```{r}
 m_importance <- lm(data = data, Importance ~ Group + Gender)
@@ -238,8 +242,162 @@ m_relate <- lm(data = data, Relate ~ Group + Gender)
 summary(m_relate)
 
 ```
-
-
 ```{r}
+stargazer(m_beauty, m_confident, m_importance, m_relate, header=F)
+```
+
+
+# Image analysis
+## Preparing the data 
+```{r}
+# Combine and recode randomization 1 & 2 for the images
+images <- c('Passion', 'Coffee', 'Couple', 'Work', 'Fit')
+questions <- c('_i_identify_', '_i_prefer_', '_o_prefer_', '_validate_')
+randomization <- c('1', '2')
+
+# Correct column names misspellings
+data <- dplyr::rename(data, Coffee_validate_1 = Coffe_validate_1, 
+            Fit_i_identify_1 = FIt_i_identify_1, 
+            Work_i_identify_2 = work_i_identify_2)
+
+# Recode image output to one column
+for (image in images){
+  for (question in questions){
+    column1 <- paste(image, question, '1', sep = "")
+    data[[column1]] <- ifelse(data[[column1]] == 'Ad 1', 2, ifelse(data[[column1]] == 'Ad 2', 1, 0))
+    column2 <- paste(image, question, '2', sep = "")
+    data[[column2]] <- ifelse(data[[column2]] == 'Ad 2', 2, ifelse(data[[column2]] == 'Ad 1', 1, 0))
+    new_column <- paste(image, question, sep ="")
+    data[[new_column]] <- data[[column1]] + data[[column2]] - 1
+    data[[new_column]] <- ifelse(data[[new_column]] == -1, NA, data[[new_column]])
+  }
+}
 
 ```
+
+## Getting the ATE for IMAGES questions
+```{r}
+images <- c('Passion', 'Coffee', 'Couple', 'Work', 'Fit')
+questions <- c('_i_identify_', '_i_prefer_', '_o_prefer_', '_validate_')
+
+for (image in images){
+  for (question in questions){
+    column <- paste(image, question, sep = "")
+    l1 <- lm(data[[column]] ~ data[['Group']])
+  print(column)
+  print(summary(l1))
+  }
+}
+```
+## Taking the total and average by questions for all images
+```{r}
+questions <- c('_i_identify_', '_i_prefer_', '_o_prefer_', '_validate_')
+images <- c('Passion', 'Coffee', 'Couple', 'Work', 'Fit')
+
+for (question in questions){
+  question_average <- paste(question, 'average', sep = "")
+  data[[question_average]] <- rep(0, nrow(data))
+  for (image in images){
+    column <- paste(image, question, sep = "")
+    data[[question_average]] <- data[[question_average]] + data[[column]]
+  }
+}
+
+for (question in questions){
+  question_average <- paste(question, 'average', sep = "")
+  print(question_average)
+  print(summary(data[[question_average]]))
+  l1 <- lm(data[[question_average]] ~ data[['Group']] + data$Gender)
+  print(summary(l1))
+}
+
+```
+
+#Second data set 
+## Load, Clean & Recode the data 
+```{r}
+raw_data2 <- read.csv('/Users/ozimmer/GoogleDrive/berkeley/w241/BeatuyAd_CausalExperiment/Data/BeautyAds_August 12, 2017_21.50.csv')
+
+data2 <- filter_data(raw_data2)
+data2 <- filter(data2, RecordedDate > '2017-08-10 00:00:00')
+
+data2$Beautiful <- sapply(data2$Personal_Views_Beautiful, FUN =  recode)
+data2$Confident <- sapply(data2$Personal_Views_Confident, FUN =  recode)
+data2$Importance <- sapply(data2$Personal_Views_Beauty_Importance, FUN =  recode)
+data2$Relate <- sapply(data2$Personal_Views_Relate_To_Model, FUN =  recode)
+
+# Combine and recode randomization 1 & 2 for the images
+images <- c('Passion', 'Coffee', 'Couple', 'Work', 'Fit')
+questions <- c('_i_identify_', '_i_prefer_', '_o_prefer_', '_validate_')
+randomization <- c('1', '2')
+
+# Correct column names misspellings
+data2 <- dplyr::rename(data2, Coffee_validate_1 = Coffe_validate_1, 
+            Fit_i_identify_1 = FIt_i_identify_1, 
+            Work_i_identify_2 = work_i_identify_2)
+
+# Recode image output to one column
+for (image in images){
+  for (question in questions){
+    column1 <- paste(image, question, '1', sep = "")
+    data2[[column1]] <- ifelse(data2[[column1]] == 'Ad 1', 2, ifelse(data2[[column1]] == 'Ad 2', 1, 0))
+    column2 <- paste(image, question, '2', sep = "")
+    data2[[column2]] <- ifelse(data2[[column2]] == 'Ad 2', 2, ifelse(data2[[column2]] == 'Ad 1', 1, 0))
+    new_column <- paste(image, question, sep ="")
+    data2[[new_column]] <- data2[[column1]] + data2[[column2]] - 1
+    data2[[new_column]] <- ifelse(data2[[new_column]] == -1, NA, data2[[new_column]])
+  }
+}
+
+```
+## Text analysis
+```{r}
+columns_to_analyse <- c('Beautiful', 'Confident', 'Importance', 'Relate')
+for (column in columns_to_analyse){
+  l1 <- lm(data2[[column]] ~ data2[['Group']] + data2[['Gender']])
+  print(column)
+  print(summary(l1)) 
+  #print(coef(summary(l1))[2,])
+}
+```
+## Image analysis
+
+```{r}
+images <- c('Passion', 'Coffee', 'Couple', 'Work', 'Fit')
+questions <- c('_i_identify_', '_i_prefer_', '_o_prefer_', '_validate_')
+
+for (image in images){
+  for (question in questions){
+    column <- paste(image, question, sep = "")
+    l1 <- lm(data2[[column]] ~ data2[['Group']])
+  print(column)
+  print(summary(l1))
+  }
+}
+```
+
+## Taking the total and average by questions for all images
+```{r}
+questions <- c('_i_identify_', '_i_prefer_', '_o_prefer_', '_validate_')
+images <- c('Passion', 'Coffee', 'Couple', 'Work', 'Fit')
+
+for (question in questions){
+  question_average <- paste(question, 'average', sep = "")
+  data2[[question_average]] <- rep(0, nrow(data2))
+  for (image in images){
+    column <- paste(image, question, sep = "")
+    data2[[question_average]] <- data2[[question_average]] + data2[[column]]
+  }
+}
+
+for (question in questions){
+  question_average <- paste(question, 'average', sep = "")
+  print(question_average)
+  print(summary(data2[[question_average]]))
+  l1 <- lm(data2[[question_average]] ~ data2[['Group']] + data2$Gender)
+  print(summary(l1))
+}
+```
+
+
+

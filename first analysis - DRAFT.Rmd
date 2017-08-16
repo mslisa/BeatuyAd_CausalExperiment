@@ -3,7 +3,8 @@ title: "Beauty Ad Causal Experiment"
 author: "Lisa Minas, Ashton Chevallier & Olivier Zimmer"
 output:
   html_document: default
-  pdf_document: default
+  pdf_document:
+    latex_engine: xelatex
 ---
 
 ```{r}
@@ -20,12 +21,14 @@ setwd('/Users/ozimmer/GoogleDrive/berkeley/w241/BeatuyAd_CausalExperiment/Data')
 d <- read.csv('BeautyAds_July 19, 2017_22.18.csv')
 
 # Filter out irrelevant entries
-d <- d[-c(1,2),]
+d <- d[-c(1,2),] #Remove the first 2 lines
 d <- d[d$Status == 'IP Address',] #Remove survey preview 
 d <- d[d$Welcome == 'I agree',] #Remove users who didn't agree to participate
 d <- d[d$Finished == 'True',] #Remove users who didn't finisn the survey
 d <- d[d$Group %in% c('Treatment', 'Control'),]
-d <- d[d$AudioCheck == 'Pineapple', ]
+d <- d[d$AudioCheck == 'Pineapple', ] #Should capture people after the pineapple test
+
+length(unique(d$IPAddress)) 
 
 # Recoding of values
 recode_values <- function(d, column){
@@ -62,6 +65,10 @@ for (image in images){
     d[[new_column]] <- ifelse(d[[new_column]] == -1, NA, d[[new_column]])
   }
 }
+
+#Removing the NAs
+
+#summary(d)
 ```
 
 ## ATE for text questions
@@ -84,7 +91,8 @@ Only Personal views relate to model has significant results.
 columns_to_analyse <- c('Personal_Views_Confident', 'Personal_Views_Beautiful', 
                        'Personal_Views_Beauty_Importance', 'Personal_Views_Relate_To_Model')
 for (column in columns_to_analyse){
-  l1 <- lm(d[[column]] ~ d[['Group']] + d$Age + d$Gender + d$Race + d$Location)
+  #l1 <- lm(d[[column]] ~ d[['Group']] + d$Age + d$Gender + d$Race + d$Location)
+  l1 <- lm(d[[column]] ~ d[['Group']] + d$Gender)
   print(column)
   print(summary(l1))
 }
@@ -143,5 +151,34 @@ for (image in images){
 }
 ```
 
+#Taking the total and average by questions for all images
+
+```{r}
+#str(d)
+#d$total <- rep(0, nrow(d))
+
+questions <- c('_i_identify_', '_i_prefer_', '_o_prefer_', '_validate_')
+images <- c('Passion', 'Coffee', 'Couple', 'Work', 'Fit')
+
+for (question in questions){
+  question_average <- paste(question, 'average', sep = "")
+  #print(question_average)
+  d[[question_average]] <- rep(0, nrow(d))
+  for (image in images){
+    column <- paste(image, question, sep = "")
+    d[[question_average]] <- d[[question_average]] + d[[column]]
+  }
+}
+
+for (question in questions){
+  question_average <- paste(question, 'average', sep = "")
+  print(question_average)
+  print(summary(d[[question_average]]))
+  l1 <- lm(d[[question_average]] ~ d[['Group']] + d$Gender)
+  print(summary(l1))
+}
+
+
+```
 
 
