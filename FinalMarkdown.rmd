@@ -303,14 +303,28 @@ for (question in questions){
   }
 }
 
-for (question in questions){
+# for (question in questions){
+#   question_average <- paste(question, 'average', sep = "")
+#   print(question_average)
+#   print(summary(data[[question_average]]))
+#   question_average <- lm(data[[question_average]] ~ data[['Group']] + data$Gender)
+#   print(summary(question_average))
+# }
+
+average_lm <- function(data, question){
   question_average <- paste(question, 'average', sep = "")
   print(question_average)
-  print(summary(data[[question_average]]))
-  l1 <- lm(data[[question_average]] ~ data[['Group']] + data$Gender)
-  print(summary(l1))
+  question_average <- lm(data[[question_average]] ~ data[['Group']] + data$Gender)
+  print(summary(question_average))
+  return(question_average)
 }
 
+lm_i_identify <- average_lm(data, '_i_identify_')
+lm_i_prefer <- average_lm(data, '_i_prefer_')
+lm_o_prefer <- average_lm(data, '_o_prefer_')
+lm_validate <- average_lm(data, '_validate_')
+
+stargazer(lm_i_identify, lm_i_prefer, lm_o_prefer, lm_validate, header=F)
 ```
 
 #Second data set 
@@ -390,13 +404,20 @@ for (question in questions){
   }
 }
 
-for (question in questions){
-  question_average <- paste(question, 'average', sep = "")
-  print(question_average)
-  print(summary(data2[[question_average]]))
-  l1 <- lm(data2[[question_average]] ~ data2[['Group']] + data2$Gender)
-  print(summary(l1))
-}
+# for (question in questions){
+#   question_average <- paste(question, 'average', sep = "")
+#   print(question_average)
+#   print(summary(data2[[question_average]]))
+#   l1 <- lm(data2[[question_average]] ~ data2[['Group']] + data2$Gender)
+#   print(summary(l1))
+# }
+
+lm_i_identify_ <- average_lm(data2, '_i_identify_')
+lm_i_prefer_ <- average_lm(data2, '_i_prefer_')
+lm_o_prefer_ <- average_lm(data2, '_o_prefer_')
+lm_validate_ <- average_lm(data2, '_validate_')
+
+stargazer(lm_i_identify_, lm_i_prefer_, lm_o_prefer_, lm_validate_, header=F)
 ```
 
 
