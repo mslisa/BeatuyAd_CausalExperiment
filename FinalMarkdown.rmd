@@ -324,7 +324,10 @@ lm_i_prefer <- average_lm(data, '_i_prefer_')
 lm_o_prefer <- average_lm(data, '_o_prefer_')
 lm_validate <- average_lm(data, '_validate_')
 
-stargazer(lm_i_identify, lm_i_prefer, lm_o_prefer, lm_validate, header=F, type='text')
+
+stargazer(lm_i_identify, lm_i_prefer, lm_o_prefer, lm_validate, header=F, type='text', column.labels = c("Identify", "I Prefer", "Others Prefer", "Validate"))
+
+
 ```
 
 #Second data set 
@@ -417,7 +420,9 @@ lm_i_prefer_ <- average_lm(data2, '_i_prefer_')
 lm_o_prefer_ <- average_lm(data2, '_o_prefer_')
 lm_validate_ <- average_lm(data2, '_validate_')
 
-stargazer(lm_i_identify_, lm_i_prefer_, lm_o_prefer_, lm_validate_, header=F, type='text')
+stargazer(lm_i_identify_, lm_i_prefer_, lm_o_prefer_, lm_validate_, header=F, type='text', column.labels = c("Identify", "I Prefer", "Others Prefer", "Validate"))
+
+
 ```
 
 
