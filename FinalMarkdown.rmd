@@ -1,6 +1,6 @@
 ---
 title: "Final_Project_Markdown"
-author: "Ashton Chevallier, Lisa Minas, Olivier"
+author: "Ashton Chevallier, Lisa Minas, Olivier Zimmer"
 date: "August 12, 2017"
 output: pdf_document
 ---
@@ -13,7 +13,7 @@ library(ggplot2)
 library(stargazer)
 
 #Change Directory
-raw_data <- read.csv('/Users/ozimmer/GoogleDrive/berkeley/w241/BeatuyAd_CausalExperiment/Data/BeautyAds_July 19, 2017_22.18.csv')
+raw_data <- read.csv('/Users/lisam/Documents/Berkeley/W241_CausalExperiments/BeatuyAd_CausalExperiment/Data/BeautyAds_July 19, 2017_22.18.csv')
 
 
 ```
@@ -243,7 +243,7 @@ summary(m_relate)
 
 ```
 ```{r}
-stargazer(m_beauty, m_confident, m_importance, m_relate, header=F)
+stargazer(m_beauty, m_confident, m_importance, m_relate, header=F, type='text')
 ```
 
 
@@ -324,13 +324,13 @@ lm_i_prefer <- average_lm(data, '_i_prefer_')
 lm_o_prefer <- average_lm(data, '_o_prefer_')
 lm_validate <- average_lm(data, '_validate_')
 
-stargazer(lm_i_identify, lm_i_prefer, lm_o_prefer, lm_validate, header=F)
+stargazer(lm_i_identify, lm_i_prefer, lm_o_prefer, lm_validate, header=F, type='text')
 ```
 
 #Second data set 
 ## Load, Clean & Recode the data 
 ```{r}
-raw_data2 <- read.csv('/Users/ozimmer/GoogleDrive/berkeley/w241/BeatuyAd_CausalExperiment/Data/BeautyAds_August 12, 2017_21.50.csv')
+raw_data2 <- read.csv('/Users/lisam/Documents/Berkeley/W241_CausalExperiments/BeatuyAd_CausalExperiment/Data/BeautyAds_August 12, 2017_21.50.csv')
 
 data2 <- filter_data(raw_data2)
 data2 <- filter(data2, RecordedDate > '2017-08-10 00:00:00')
@@ -417,7 +417,7 @@ lm_i_prefer_ <- average_lm(data2, '_i_prefer_')
 lm_o_prefer_ <- average_lm(data2, '_o_prefer_')
 lm_validate_ <- average_lm(data2, '_validate_')
 
-stargazer(lm_i_identify_, lm_i_prefer_, lm_o_prefer_, lm_validate_, header=F)
+stargazer(lm_i_identify_, lm_i_prefer_, lm_o_prefer_, lm_validate_, header=F, type='text')
 ```
 
 
