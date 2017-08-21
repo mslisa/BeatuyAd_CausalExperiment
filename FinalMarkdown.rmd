@@ -1,8 +1,10 @@
 ---
 title: "Final_Project_Markdown"
-author: "Ashton Chevallier, Lisa Minas, Olivier Zimmer"
+author: "Ashton Chevallier, Lisa Minas, Olivier"
 date: "August 12, 2017"
-output: pdf_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 
@@ -11,9 +13,10 @@ output: pdf_document
 library(dplyr)
 library(ggplot2)
 library(stargazer)
-
+library(lmtest)
+#stargazer(both, )
 #Change Directory
-raw_data <- read.csv('/Users/lisam/Documents/Berkeley/W241_CausalExperiments/BeatuyAd_CausalExperiment/Data/BeautyAds_July 19, 2017_22.18.csv')
+raw_data <- read.csv('C:/Users/achevall/Documents/UC Berkeley/w241/Final/BeatuyAd_CausalExperiment/Data/BeautyAds_July 19, 2017_22.18.csv')
 
 
 ```
@@ -54,17 +57,21 @@ We got excellent an split between Treatment and Control, which gives us confiden
 ##Exploratory Graphs
 ```{r age_graphs}
 
-qplot(data$Age, geom = 'bar', fill = 'b', main = 'Bar plot of Age')
+qplot(data$Age, geom = 'bar', fill = 'Count', main = 'Bar plot of Age')
 ```
 Not a lot of old people on Mechanical Turk, this is expected because I doubt retirees are filling out surveys to pay the bills. But our sample is certainly biased towards the 'millenials'.
 ```{r}
-#INSERT CODE TO ROTATE LOCATIONS
-qplot(data$Location, geom = 'bar', fill = 'r', main = 'Bar Plot of Location')
+
+qplot(data$Location, geom = 'bar', fill = 'r', main = 'Bar Plot of Location') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  coord_flip()
 ```
 Nothing too glaringly terrible, but Mechanical Turk seems much more popular in California than other places.
 ```{r}
 #Rotate Race
-qplot(data$Race, geom = 'bar', fill= 'g', main = 'Bar Plot of Race')
+qplot(data$Race, geom = 'bar', fill= 'Count', main = 'Bar Plot of Race') +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  coord_flip()
 ```
 Again, our distribution is fairly representative of the US. Nothing too biased. Although, we might not have enough power make any real causal claims on race.
 
@@ -139,19 +146,20 @@ qplot(data$Confident, data$Beautiful)
 cor.test(data$Confident,data$Beautiful)
 chisq.test(data$Confident, data$Beautiful)
 ```
-It looks like our Confidence and Self Beauty are strongly correlated, which is not surprising.
 
-```{r}
-cor.test(data$Relate, data$Beautiful )
+#Randomization Validation
 
+```{r random_validation}
+qplot(data = data, x = Gender, geom = 'bar', fill = Group)
+table(data$Gender)
+table(data$Group)
 ```
-
-** Note (Olivier): I would stick to descriptive statistics and not cover here correlation, as at this point this could be influenced by the experiment**
-
-The correlation between relating to the model and beauty is not nearly as strong as the correlation between beauty and confidence.
+It looks like our randomization worked very well. We got an even split on treatment and control and an almost even split on Male and Females. We have little reason to beleive the randomization didn't work properly.
 
 #Randomization Inference
-```{r RI1}
+
+To check to see whether we just got lucky, or actually found a treatment effect before diving into linear models, we'll run a randomization inference check on the ATE between treatment and control.
+```{r RI1, cache=TRUE}
 treat <- filter(data, Group == 'Treatment')
 control <- filter(data, Group == 'Control')
 
@@ -186,7 +194,8 @@ print(paste('Pval Relate', p_relate))
 print(paste('Pval Important', p_importance))
 ```
 
-Our only variable that seems to have a real ATE is the relation.
+Our only variable that seems to have a real a statistically significant ATE is the relating to the model. As noted before, our group of Turks already had a a pretty high level of self beauty and confidence, so we didn't expect to see it change much with treatment.
+
 
 ##RI Plots
 ```{r rIplots}
@@ -206,50 +215,71 @@ The distributions are fairly normal and centered at zero. We can be fairly confi
 m_beauty <- lm(data = data, Beautiful ~ Group)
 summary(m_beauty)
 ```
+The linear model version of statistical inference gives similar results to the RI, but with even larger pvalue. We're guessing the high levels of self beauty didn't leave much room for the treatment to have an effect.
 
 ```{r}
 m_confident <- lm(data = data, Confident ~ Group)
 summary(m_confident)
 ```
+Similar to the beauty inference. It doesn't look like there was much room for a treatment to cause a noticable change.
 
 ```{r}
 m_importance <- lm(data = data, Importance ~ Group)
 summary(m_importance)
 ```
+No surprises here. It looks like the video doesn't really change what you think about the importance of beauty.
 
 ```{r}
 m_relate <- lm(data = data, Relate ~ Group)
 summary(m_relate)
 ```
+Our linear model confirms what we saw with the RI. Remember, we recoded Agree to 1 point and Strongly agree to 2 points, so the treatment effectively yields a .25 point increase in how much they person can relate to the model. It's not straightforward what the coefficient means, but effectively people relate more to the non-stereotypical model. We'll explore how the other co-variates effect the ATE.
 
+```{r final}
+stargazer(m_beauty, m_confident, m_importance, m_relate, header=F, type = 'text')
+```
+#Covariate Analysis
 ```{r}
 m_beauty <- lm(data = data, Beautiful ~ Group + Gender)
 summary(m_beauty)
+data %>% group_by(Group, Gender) %>% summarize(avg = mean(Beautiful))
 ```
+It looks like our treatment still isn't significant with the inclusion of gender as a co-variate, but interestingly enough women have a much higher rate of beauty than men do.
+
 
 ```{r}
 m_confident <- lm(data = data, Confident ~ Group + Gender)
 summary(m_confident)
+data %>% group_by(Group, Gender) %>% summarise(avg = mean(Confident))
 ```
+Again, adding the gender covariate didn't improve the model much.
 
 ```{r}
 m_importance <- lm(data = data, Importance ~ Group + Gender)
 summary(m_importance)
+data %>% group_by(Group, Gender) %>% summarise(avg = mean(Importance))
 ```
+Treatment effect remains insignificant with additional co-variates gender covariate. Somewhat surprisingly, men don't place as high importance on beauty.
 
 ```{r}
 m_relate <- lm(data = data, Relate ~ Group + Gender)
 summary(m_relate)
+data %>% group_by(Group, Gender) %>% summarise(avg = mean(Relate))
 
 ```
+With the gender co-variate our treatment remains statistically significiant. Unsurprisingly, the effect is a lot stronger for women than men.
+
+#Covariate Summary
 ```{r}
-stargazer(m_beauty, m_confident, m_importance, m_relate, header=F, type='text')
+stargazer(m_beauty, m_confident, m_importance, m_relate, header=F, type = 'text')
 ```
-
+Gender did make a pretty big significance in almost every model, even when the treatment was insignificant. Since we only suspected the treatment effect to really have a effect on gender we aren't going fishing for other covariate significance.
 
 # Image analysis
 ## Preparing the data 
-```{r}
+
+Essentially we are counting a 1 if the response matched whether you were in treatment or control.
+```{r cache=TRUE}
 # Combine and recode randomization 1 & 2 for the images
 images <- c('Passion', 'Coffee', 'Couple', 'Work', 'Fit')
 questions <- c('_i_identify_', '_i_prefer_', '_o_prefer_', '_validate_')
@@ -279,16 +309,23 @@ for (image in images){
 ```{r}
 images <- c('Passion', 'Coffee', 'Couple', 'Work', 'Fit')
 questions <- c('_i_identify_', '_i_prefer_', '_o_prefer_', '_validate_')
-
+models <- list(20)
+i <- 1
 for (image in images){
   for (question in questions){
     column <- paste(image, question, sep = "")
     l1 <- lm(data[[column]] ~ data[['Group']])
+    models <- list(models, l1)
+    i <- i + 1
   print(column)
-  print(summary(l1))
+  
+  print(coeftest(l1))
   }
 }
+stargazer(models, type = 'text')
 ```
+Only 1 question out of the 20 had any real significance. Essentially, for the passion photo, showing treatment led to preferring the non-stereotypical image. At an alpha rate of .05 we know that we could have simply gotten this result from a random selection at least 1 out of 20 times. To make sure we there is a real effect here, we'll need to run the experiment again, otherwise we might be fishing for significance. 
+
 ## Taking the total and average by questions for all images
 ```{r}
 questions <- c('_i_identify_', '_i_prefer_', '_o_prefer_', '_validate_')
@@ -303,19 +340,13 @@ for (question in questions){
   }
 }
 
-# for (question in questions){
-#   question_average <- paste(question, 'average', sep = "")
-#   print(question_average)
-#   print(summary(data[[question_average]]))
-#   question_average <- lm(data[[question_average]] ~ data[['Group']] + data$Gender)
-#   print(summary(question_average))
-# }
+
 
 average_lm <- function(data, question){
   question_average <- paste(question, 'average', sep = "")
-  print(question_average)
+  #print(question_average)
   question_average <- lm(data[[question_average]] ~ data[['Group']] + data$Gender)
-  print(summary(question_average))
+  #print(coeftest(question_average))
   return(question_average)
 }
 
@@ -324,16 +355,16 @@ lm_i_prefer <- average_lm(data, '_i_prefer_')
 lm_o_prefer <- average_lm(data, '_o_prefer_')
 lm_validate <- average_lm(data, '_validate_')
 
-
-stargazer(lm_i_identify, lm_i_prefer, lm_o_prefer, lm_validate, header=F, type='text', column.labels = c("Identify", "I Prefer", "Others Prefer", "Validate"))
-
-
+stargazer(lm_i_identify, lm_i_prefer, lm_o_prefer, lm_validate, header=T, type = 'text',
+          column.labels = c('I Identify','I Prefer','Others Prefer','Validate'))
 ```
+Because the original data set was essentially 20 interactions between images and questions, we wanted to summarize the effects to each question. In aggregate, the measurement still makes sense. We are in effect seeing if each survey taker matches up to the stereotypical or non-stereotypical image and seeing if the treatment makes any difference. Even in aggregate none of the questions had any statistically significant treatment effect. Although, interestingly males seemed to match up with their photos of their treatment more than females.
+
 
 #Second data set 
 ## Load, Clean & Recode the data 
 ```{r}
-raw_data2 <- read.csv('/Users/lisam/Documents/Berkeley/W241_CausalExperiments/BeatuyAd_CausalExperiment/Data/BeautyAds_August 12, 2017_21.50.csv')
+raw_data2 <- read.csv('C:/Users/achevall/Documents/UC Berkeley/w241/Final/BeatuyAd_CausalExperiment/Data/BeautyAds_August 12, 2017_21.50.csv')
 
 data2 <- filter_data(raw_data2)
 data2 <- filter(data2, RecordedDate > '2017-08-10 00:00:00')
@@ -370,13 +401,16 @@ for (image in images){
 ## Text analysis
 ```{r}
 columns_to_analyse <- c('Beautiful', 'Confident', 'Importance', 'Relate')
+models <- list(4)
 for (column in columns_to_analyse){
   l1 <- lm(data2[[column]] ~ data2[['Group']] + data2[['Gender']])
-  print(column)
-  print(summary(l1)) 
-  #print(coef(summary(l1))[2,])
+ 
+  models <- list(models, l1)
 }
+stargazer(models, header = FALSE, type = 'text', column.labels = columns_to_analyse)
 ```
+Our second experiment confirms the treatment effect on relating to the models in the non-stereotypical ad.
+
 ## Image analysis
 
 ```{r}
@@ -387,8 +421,6 @@ for (image in images){
   for (question in questions){
     column <- paste(image, question, sep = "")
     l1 <- lm(data2[[column]] ~ data2[['Group']])
-  print(column)
-  print(summary(l1))
   }
 }
 ```
@@ -420,10 +452,8 @@ lm_i_prefer_ <- average_lm(data2, '_i_prefer_')
 lm_o_prefer_ <- average_lm(data2, '_o_prefer_')
 lm_validate_ <- average_lm(data2, '_validate_')
 
-stargazer(lm_i_identify_, lm_i_prefer_, lm_o_prefer_, lm_validate_, header=F, type='text', column.labels = c("Identify", "I Prefer", "Others Prefer", "Validate"))
-
-
+stargazer(lm_i_identify_, lm_i_prefer_, lm_o_prefer_, lm_validate_, header=T, type = 'text',
+          column.labels = c('I Identify','I Prefer','Others Prefer','Validate'))
 ```
-
-
+Interestingly, our 2nd experiment did find significance of people matching the image that they thought others would prefer. It's hard to trust this result, as the 1st experiment performed so differently.
 
