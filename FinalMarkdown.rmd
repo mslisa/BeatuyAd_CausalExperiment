@@ -1,6 +1,6 @@
 ---
 title: "Final_Project_Markdown"
-author: "Ashton Chevallier, Lisa Minas, Olivier"
+author: "Ashton Chevallier, Lisa Minas, Olivier Zimmer"
 date: "August 12, 2017"
 output:
   pdf_document: default
@@ -27,7 +27,8 @@ raw_data <- read.csv('C:/Users/achevall/Documents/UC Berkeley/w241/Final/BeatuyA
 ```{r filter}
 #First Filter out junk data
 filter_data <- function(raw_data) {
-  raw_data$RecordedDate <- as.POSIXct(strptime(as.character(raw_data$RecordedDate), '%Y-%m-%d %H:%M:%S'))
+  raw_data$RecordedDate <- as.POSIXct(strptime(as.character(raw_data$RecordedDate),
+                                               '%Y-%m-%d %H:%M:%S'))
   data <- raw_data %>% 
     filter(Finished == 'True',
            Status == 'IP Address',
@@ -294,9 +295,11 @@ data <- dplyr::rename(data, Coffee_validate_1 = Coffe_validate_1,
 for (image in images){
   for (question in questions){
     column1 <- paste(image, question, '1', sep = "")
-    data[[column1]] <- ifelse(data[[column1]] == 'Ad 1', 2, ifelse(data[[column1]] == 'Ad 2', 1, 0))
+    data[[column1]] <- ifelse(data[[column1]] == 'Ad 1', 2, 
+                              ifelse(data[[column1]] == 'Ad 2', 1, 0))
     column2 <- paste(image, question, '2', sep = "")
-    data[[column2]] <- ifelse(data[[column2]] == 'Ad 2', 2, ifelse(data[[column2]] == 'Ad 1', 1, 0))
+    data[[column2]] <- ifelse(data[[column2]] == 'Ad 2', 2,
+                              ifelse(data[[column2]] == 'Ad 1', 1, 0))
     new_column <- paste(image, question, sep ="")
     data[[new_column]] <- data[[column1]] + data[[column2]] - 1
     data[[new_column]] <- ifelse(data[[new_column]] == -1, NA, data[[new_column]])
@@ -388,9 +391,11 @@ data2 <- dplyr::rename(data2, Coffee_validate_1 = Coffe_validate_1,
 for (image in images){
   for (question in questions){
     column1 <- paste(image, question, '1', sep = "")
-    data2[[column1]] <- ifelse(data2[[column1]] == 'Ad 1', 2, ifelse(data2[[column1]] == 'Ad 2', 1, 0))
+    data2[[column1]] <- ifelse(data2[[column1]] == 'Ad 1',
+                               2, ifelse(data2[[column1]] == 'Ad 2', 1, 0))
     column2 <- paste(image, question, '2', sep = "")
-    data2[[column2]] <- ifelse(data2[[column2]] == 'Ad 2', 2, ifelse(data2[[column2]] == 'Ad 1', 1, 0))
+    data2[[column2]] <- ifelse(data2[[column2]] == 'Ad 2',
+                               2, ifelse(data2[[column2]] == 'Ad 1', 1, 0))
     new_column <- paste(image, question, sep ="")
     data2[[new_column]] <- data2[[column1]] + data2[[column2]] - 1
     data2[[new_column]] <- ifelse(data2[[new_column]] == -1, NA, data2[[new_column]])
@@ -455,5 +460,5 @@ lm_validate_ <- average_lm(data2, '_validate_')
 stargazer(lm_i_identify_, lm_i_prefer_, lm_o_prefer_, lm_validate_, header=T, type = 'text',
           column.labels = c('I Identify','I Prefer','Others Prefer','Validate'))
 ```
-Interestingly, our 2nd experiment did find significance of people matching the image that they thought others would prefer. It's hard to trust this result, as the 1st experiment performed so differently.
+Interestingly, our 2nd experiment did find significance of people matching the image that they thought others would prefer. It's hard to trust this result, as the 1st experiment performed so differently. However, interestingly we see once again that males tended to match the non-stereotypical ad regardless of treatment.
 
